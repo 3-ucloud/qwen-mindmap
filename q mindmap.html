@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Own Cloud Hub Prototype</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    :root {
+      --bg-color: #f5f5f5;
+      --glass-bg: rgba(255, 255, 255, 0.25);
+      --glass-border: rgba(255, 255, 255, 0.3);
+      --primary: #3b82f6;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .container {
+      display: flex;
+      height: 100vh;
+      position: relative;
+    }
+
+    /* View Toggle */
+    .view-toggle {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      z-index: 100;
+      display: flex;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .toggle-btn {
+      padding: 10px 20px;
+      background: white;
+      border: none;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .toggle-btn.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    /* Mind Map View */
+    .mindmap-view {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    .mindmap-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    .hub-node {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 200px;
+      height: 200px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+      border: 1px solid var(--glass-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 1.5rem;
+      text-align: center;
+      z-index: 10;
+    }
+
+    .branch-node {
+      position: absolute;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: white;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      z-index: 20;
+    }
+
+    .branch-node:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+    }
+
+    .branch-node.usb { top: 20%; left: 30%; }
+    .branch-node.phone { top: 20%; right: 30%; }
+    .branch-node.drive { bottom: 20%; left: 30%; }
+    .branch-node.gmail { bottom: 20%; right: 30%; }
+    .branch-node.router { top: 50%; left: 10%; transform: translateY(-50%); }
+    .branch-node.pc { top: 50%; right: 10%; transform: translateY(-50%); }
+
+    .connection-line {
+      position: absolute;
+      background: #cbd5e1;
+      transform-origin: 0 0;
+      z-index: 5;
+    }
+
+    /* Drawer */
+    .drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 340px;
+      height: 100vh;
+      background: white;
+      box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+      z-index: 100;
+      padding: 20px;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+      overflow-y: auto;
+    }
+
+    .drawer.open {
+      transform: translateX(0);
+    }
+
+    .drawer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .drawer-title {
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #64748b;
+    }
+
+    .folder {
+      margin-bottom: 15px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .folder-header {
+      padding: 12px 15px;
+      background: #f8fafc;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .folder-content {
+      padding: 10px 15px;
+      display: none;
+    }
+
+    .folder.open .folder-content {
+      display: block;
+    }
+
+    .item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .item:last-child {
+      border-bottom: none;
+    }
+
+    .status-icon {
+      font-size: 1.2rem;
+    }
+
+    /* Tree View */
+    .tree-view {
+      display: flex;
+      width: 100%;
+      height: 100%;
+    }
+
+    .tree-panel {
+      width: 320px;
+      background: white;
+      padding: 20px;
+      border-right: 1px solid #e2e8f0;
+      overflow-y: auto;
+    }
+
+    .tree-header {
+      font-size: 1.2rem;
+      font-weight: bold;
+      margin-bottom: 15px;
+    }
+
+    .tree-node {
+      padding: 8px 12px;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+
+    .tree-node:hover {
+      background: #f1f5f9;
+    }
+
+    .tree-node.selected {
+      background: #dbeafe;
+      color: var(--primary);
+    }
+
+    .tree-children {
+      margin-left: 20px;
+    }
+
+    .visualization-panel {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .mindmap-mini {
+      position: relative;
+      width: 250px;
+      height: 250px;
+    }
+
+    .hub-mini {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100px;
+      height: 100px;
+      background: #dbeafe;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      text-align: center;
+      border: 2px solid #93c5fd;
+    }
+
+    .node-mini {
+      position: absolute;
+      width: 100px;
+      height: 100px;
+      background: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      text-align: center;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      border: 3px solid var(--primary);
+    }
+
+    .node-mini.phone { top: 0; left: 50%; transform: translateX(-50%); }
+    .node-mini.photos { bottom: 0; left: 0; }
+    .node-mini.docs { bottom: 0; right: 0; }
+    .node-mini.drive { top: 0; left: 0; }
+    .node-mini.reports { top: 0; right: 0; }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- View Toggle -->
+    <div class="view-toggle">
+      <button id="mindmapBtn" class="toggle-btn active">Mind Map View</button>
+      <button id="treeBtn" class="toggle-btn">Tree View</button>
+    </div>
+
+    <!-- Mind Map View -->
+    <div id="mindmapView" class="mindmap-view">
+      <div class="mindmap-container">
+        <div class="hub-node">Own Cloud Hub</div>
+        
+        <div class="branch-node usb" data-node="usb">🔌</div>
+        <div class="branch-node phone" data-node="phone">📱</div>
+        <div class="branch-node drive" data-node="drive">☁️</div>
+        <div class="branch-node gmail" data-node="gmail">📧</div>
+        <div class="branch-node router" data-node="router">📡</div>
+        <div class="branch-node pc" data-node="pc">💻</div>
+        
+        <!-- Connection lines will be drawn with JS -->
+      </div>
+      
+      <!-- Drawer -->
+      <div id="drawer" class="drawer">
+        <div class="drawer-header">
+          <div class="drawer-title" id="drawerTitle">Node Content</div>
+          <button class="close-btn" id="closeDrawer">&times;</button>
+        </div>
+        
+        <div class="folder open">
+          <div class="folder-header">
+            <span>📁 Photos</span>
+            <span>▼</span>
+          </div>
+          <div class="folder-content">
+            <div class="item">
+              <span>Vacation 2023</span>
+              <span class="status-icon">✔</span>
+            </div>
+            <div class="item">
+              <span>Family Reunion</span>
+              <span class="status-icon">⏳</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="folder open">
+          <div class="folder-header">
+            <span>📁 Docs</span>
+            <span>▼</span>
+          </div>
+          <div class="folder-content">
+            <div class="item">
+              <span>Project Plan</span>
+              <span class="status-icon">⬜</span>
+            </div>
+            <div class="item">
+              <span>Meeting Notes</span>
+              <span class="status-icon">✔</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="folder">
+          <div class="folder-header">
+            <span>📁 Music</span>
+            <span>▶</span>
+          </div>
+          <div class="folder-content">
+            <div class="item" style="color: #94a3b8;">
+              No items
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tree View -->
+    <div id="treeView" class="tree-view hidden">
+      <div class="tree-panel">
+        <div class="tree-header">Cloud Storage</div>
+        
+        <div class="tree-node" data-key="phone">
+          <div>📱 Phone</div>
+          <div class="tree-children">
+            <div class="tree-node" data-key="photos">📁 Photos ✔</div>
+            <div class="tree-node" data-key="docs">📁 Docs ⏳</div>
+          </div>
+        </div>
+        
+        <div class="tree-node" data-key="drive">
+          <div>☁️ Google Drive</div>
+          <div class="tree-children">
+            <div class="tree-node" data-key="reports">📁 Reports ⬜</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="visualization-panel">
+        <div class="mindmap-mini">
+          <div class="hub-mini">Own Cloud Hub</div>
+          <div id="selectedNode" class="node-mini hidden"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // View switching
+    document.getElementById('mindmapBtn').addEventListener('click', () => {
+      document.getElementById('mindmapView').classList.remove('hidden');
+      document.getElementById('treeView').classList.add('hidden');
+      document.getElementById('mindmapBtn').classList.add('active');
+      document.getElementById('treeBtn').classList.remove('active');
+    });
+
+    document.getElementById('treeBtn').addEventListener('click', () => {
+      document.getElementById('mindmapView').classList.add('hidden');
+      document.getElementById('treeView').classList.remove('hidden');
+      document.getElementById('treeBtn').classList.add('active');
+      document.getElementById('mindmapBtn').classList.remove('active');
+    });
+
+    // Mind Map Interactions
+    const branchNodes = document.querySelectorAll('.branch-node');
+    const drawer = document.getElementById('drawer');
+    const drawerTitle = document.getElementById('drawerTitle');
+    const closeDrawerBtn = document.getElementById('closeDrawer');
+
+    branchNodes.forEach(node => {
+      node.addEventListener('click', () => {
+        const nodeType = node.getAttribute('data-node');
+        drawerTitle.textContent = getNodeLabel(nodeType) + ' Content';
+        drawer.classList.add('open');
+      });
+    });
+
+    closeDrawerBtn.addEventListener('click', () => {
+      drawer.classList.remove('open');
+    });
+
+    function getNodeLabel(type) {
+      const labels = {
+        'usb': '🔌 USB',
+        'phone': '📱 Phone',
+        'drive': '☁️ Drive',
+        'gmail': '📧 Gmail',
+        'router': '📡 Router',
+        'pc': '💻 PC'
+      };
+      return labels[type] || type;
+    }
+
+    // Draw connection lines
+    function drawLines() {
+      const hub = document.querySelector('.hub-node');
+      const branches = document.querySelectorAll('.branch-node');
+      const container = document.querySelector('.mindmap-container');
+      
+      // Remove existing lines
+      document.querySelectorAll('.connection-line').forEach(el => el.remove());
+      
+      const hubRect = hub.getBoundingClientRect();
+      const hubCenterX = hubRect.left + hubRect.width / 2;
+      const hubCenterY = hubRect.top + hubRect.height / 2;
+      
+      branches.forEach(branch => {
+        const branchRect = branch.getBoundingClientRect();
+        const branchCenterX = branchRect.left + branchRect.width / 2;
+        const branchCenterY = branchRect.top + branchRect.height / 2;
+        
+        const length = Math.sqrt(
+          Math.pow(branchCenterX - hubCenterX, 2) + 
+          Math.pow(branchCenterY - hubCenterY, 2)
+        );
+        
+        const angle = Math.atan2(
+          branchCenterY - hubCenterY,
+          branchCenterX - hubCenterX
+        ) * 180 / Math.PI;
+        
+        const line = document.createElement('div');
+        line.className = 'connection-line';
+        line.style.width = `${length}px`;
+        line.style.height = '2px';
+        line.style.left = `${hubCenterX}px`;
+        line.style.top = `${hubCenterY}px`;
+        line.style.transform = `rotate(${angle}deg)`;
+        container.appendChild(line);
+      });
+    }
+
+    // Tree View Interactions
+    const treeNodes = document.querySelectorAll('.tree-node');
+    const selectedNodeDisplay = document.getElementById('selectedNode');
+
+    treeNodes.forEach(node => {
+      node.addEventListener('click', () => {
+        // Remove previous selection
+        document.querySelectorAll('.tree-node').forEach(n => {
+          n.classList.remove('selected');
+        });
+        
+        // Add selection to current and parents
+        let current = node;
+        while (current && current.classList.contains('tree-node')) {
+          current.classList.add('selected');
+          current = current.parentElement.closest('.tree-node');
+        }
+        
+        // Show selected node in visualization
+        const key = node.getAttribute('data-key');
+        const label = getNodeLabelFromKey(key);
+        selectedNodeDisplay.textContent = label;
+        selectedNodeDisplay.className = 'node-mini ' + key;
+        selectedNodeDisplay.classList.remove('hidden');
+      });
+    });
+
+    function getNodeLabelFromKey(key) {
+      const labels = {
+        'phone': '📱 Phone',
+        'photos': '📁 Photos',
+        'docs': '📁 Docs',
+        'drive': '☁️ Drive',
+        'reports': '📁 Reports'
+      };
+      return labels[key] || key;
+    }
+
+    // Folder toggling
+    document.querySelectorAll('.folder-header').forEach(header => {
+      header.addEventListener('click', () => {
+        const folder = header.parentElement;
+        folder.classList.toggle('open');
+        const arrow = header.querySelector('span:last-child');
+        arrow.textContent = folder.classList.contains('open') ? '▼' : '▶';
+      });
+    });
+
+    // Initialize
+    window.addEventListener('load', drawLines);
+    window.addEventListener('resize', drawLines);
+  </script>
+</body>
+</html>
