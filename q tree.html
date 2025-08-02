@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Sources Tree View</title>
+  
+  <!-- Apple-style fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Helvetica+Neue:wght@300;400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- Ant Design CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/antd@5.12.8/dist/reset.css">
+  
+  <!-- Tailwind-like styles via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"Helvetica Neue"', 'sans-serif']
+          },
+          colors: {
+            'cloudblue': {
+              DEFAULT: '#60a5fa',
+              dark: '#2563eb'
+            },
+            'neutral-soft': '#d1d5db',
+            'soft-white': '#f5f5f5'
+          },
+          boxShadow: {
+            soft: '0 1px 4px rgba(0,0,0,0.05)'
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+      background-color: #f5f5f5;
+      color: #333333;
+    }
+    
+    .glass-card {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(10px);
+      border-radius: 0.75rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+      border: 1px solid #d4d4d4;
+    }
+    
+    .ant-tree-treenode:hover {
+      background-color: #e0f2ff !important;
+    }
+    
+    .status-synced {
+      color: #2563eb;
+    }
+    
+    .status-syncing {
+      color: #60a5fa;
+    }
+    
+    .status-not-synced {
+      color: #d1d5db;
+    }
+  </style>
+</head>
+<body>
+  <div class="min-h-screen bg-soft-white flex">
+    <!-- Tree Panel -->
+    <div class="w-[320px] p-4">
+      <div class="glass-card p-4">
+        <div id="tree-container"></div>
+      </div>
+    </div>
+    
+    <!-- Mini-map Panel -->
+    <div class="flex-1 p-4">
+      <div class="glass-card p-4 w-[250px] h-[250px]">
+        <h3 class="font-medium mb-2">Mini Map</h3>
+        <svg id="minimap" viewBox="0 0 200 200" class="w-full h-full">
+          <!-- Central Hub -->
+          <circle cx="100" cy="100" r="10" fill="#2563eb" />
+          
+          <!-- Node Circles -->
+          <circle id="node-phone-photos" cx="150" cy="60" r="8" fill="#d1d5db" />
+          <circle id="node-phone-docs" cx="50" cy="80" r="8" fill="#d1d5db" />
+          <circle id="node-drive-reports" cx="120" cy="150" r="8" fill="#d1d5db" />
+          
+          <!-- Lines -->
+          <line x1="100" y1="100" x2="150" y2="60" stroke="#ccc" stroke-width="1" />
+          <line x1="100" y1="100" x2="50" y2="80" stroke="#ccc" stroke-width="1" />
+          <line x1="100" y1="100" x2="120" y2="150" stroke="#ccc" stroke-width="1" />
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ant Design JS -->
+  <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/antd@5.12.8/dist/antd.min.js"></script>
+  
+  <script>
+    const { Tree } = antd;
+    const { useState } = React;
+    
+    const treeData = [
+      {
+        title: '📱 Phone',
+        key: 'phone',
+        children: [
+          { title: 'Photos  ✔', key: 'phone-photos' },
+          { title: 'Docs   ⏳', key: 'phone-docs' }
+        ]
+      },
+      {
+        title: '☁️ Google Drive',
+        key: 'gdrive',
+        children: [
+          { title: 'Reports ⬜', key: 'drive-reports' }
+        ]
+      }
+    ];
+    
+    function TreeNodeWithIcons({ title }) {
+      const parts = title.split(/(\s[✔⏳⬜])/);
+      return React.createElement('span', null, 
+        parts.map((part, i) => {
+          if ([' ✔', ' ⏳', ' ⬜'].includes(part)) {
+            const icon = part.trim();
+            const classes = {
+              '✔': 'status-synced',
+              '⏳': 'status-syncing',
+              '⬜': 'status-not-synced'
+            }[icon];
+            return React.createElement('span', { 
+              key: i, 
+              className: classes 
+            }, icon);
+          }
+          return part;
+        })
+      );
+    }
+    
+    function TreeComponent() {
+      const [selectedKey, setSelectedKey] = useState('phone');
+      
+      const onSelect = (selectedKeys) => {
+        if (selectedKeys.length > 0) {
+          setSelectedKey(selectedKeys[0]);
+          
+          // Update minimap
+          document.getElementById('node-phone-photos').setAttribute('fill', selectedKeys[0] === 'phone-photos' ? '#2563eb' : '#d1d5db');
+          document.getElementById('node-phone-docs').setAttribute('fill', selectedKeys[0] === 'phone-docs' ? '#2563eb' : '#d1d5db');
+          document.getElementById('node-drive-reports').setAttribute('fill', selectedKeys[0] === 'drive-reports' ? '#2563eb' : '#d1d5db');
+        }
+      };
+      
+      const renderTitle = (node) => {
+        return React.createElement(TreeNodeWithIcons, { title: node.title });
+      };
+      
+      return React.createElement(Tree, {
+        defaultExpandAll: true,
+        treeData: treeData,
+        onSelect: onSelect,
+        titleRender: renderTitle
+      });
+    }
+    
+    // Render the tree
+    ReactDOM.createRoot(document.getElementById('tree-container')).render(
+      React.createElement(TreeComponent)
+    );
+  </script>
+</body>
+</html>
